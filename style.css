@@ -1,0 +1,13 @@
+table{ border-collapse:collapse; margin:auto; position:static; }
+td.square{ height:75px; width:75px; border:2px solid black; }
+td.black{ background-color:dimGray; }
+td.white{ background-color:white; }
+td.avalable{ background-color:limeGreen; }
+td.for_taking{ background-color:#ff1a1a; }
+div.piece{ height:67px; width:67px; margin:auto; border-radius:100%; border:none; }
+div.black{ background-color:black; }
+div.white{ background-color:white; }
+div.selected{ border:4px solid limeGreen; }
+div.for_taking{ border:4px solid #ff1a1a; }
+div.token{ position:relative; height:25px; width:25px; border-radius:100%; left:21px; top:21px; }
+div.promoted{ background-color: darkOrange; }
