@@ -1,0 +1,2 @@
+1. add force capture for all pieces (you cant move a piece unless its a capture)
+2. change rotation to be multidirectional
