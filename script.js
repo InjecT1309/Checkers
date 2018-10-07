@@ -3,46 +3,44 @@ var frame = 0;
 var in_progress = false;
 
 const ColorType = {NONE:0, WHITE:1, BLACK:2};
-var whose_turn;
+var whose_turn = ColorType.WHITE;
+var selection_lock = false;
 
 function setUpBoard() 
 {
-  	clearTiles();
-  	resetPieces(12, 12);
-  	whose_turn = ColorType.WHITE;
+	var board = document.getElementById("board");
+
+  	resetTiles(board);
+  	resetPieces(board, 12, 12);
 }
 
-function clearTiles() 
+function resetTiles(board) 
 {
-  	var board = document.getElementById("board");
-
-  	for(var x = 0; x < board.rows.length; x++) 
+  	for(var r = 0; r < board.rows.length; r++) 
   	{
-    	for(var y = 0; y < board.rows[x].cells.length; y++) 
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
     	{
-			var tile = board.rows[x].cells[y];
+			var tile = board.rows[r].cells[c];
 
-			if((x + y) % 2 === 0) 
+			if((r + c) % 2 === 0) 
 	        	tile.className = "black square";
 	      	else
 	        	tile.className = "white square";
 
-	      	tile.onclick = movePiece;
+	      	tile.onclick = pieceAction;
     	}
   	}
 }
 
-function resetPieces(n_o_black, n_o_white) 
+function resetPieces(board, n_o_black, n_o_white) 
 {
-  	var board = document.getElementById("board");
-
   	var pieces_black = n_o_black;
 
-  	for(var x = 0; x < board.rows.length; x++) 
+  	for(var r = 0; r < board.rows.length; r++) 
   	{
-    	for(var y = 0; y < board.rows[x].cells.length; y++) 
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
     	{
-      		var tile = board.rows[x].cells[y];
+      		var tile = board.rows[r].cells[c];
 
       		if(tile.className === "black square") 
       		{
@@ -61,11 +59,11 @@ function resetPieces(n_o_black, n_o_white)
 
   	var pieces_white = n_o_white;
 
-  	for(var x = board.rows.length-1; x >= 0; x--) 
+  	for(var r = board.rows.length-1; r >= 0; r--) 
   	{
-    	for(var y = 0; y < board.rows[x].cells.length; y++) 
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
     	{
-      		var tile = board.rows[x].cells[y];
+      		var tile = board.rows[r].cells[c];
 
 		    if(tile.className === "black square") 
 		    {
@@ -85,144 +83,156 @@ function resetPieces(n_o_black, n_o_white)
 	}
 }
 
-function clearPieces() 
+function clearHighlight(board) 
 {
-  	var board = document.getElementById("board");
-
-  	for(var x = 0; x < board.rows.length; x++) 
+  	for(var r = 0; r < board.rows.length; r++) 
   	{
-    	for(var y = 0; y < board.rows[x].cells.length; y++) 
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
     	{
-      		var tile = board.rows[x].cells[y];
+			var tile = board.rows[r].cells[c];
 
-      		if(tile.className === "black square") 
-      		{
-        		var child = tile.firstChild;
-
-        		if(child != null)
-          			tile.removeChild(tile.firstChild);
-      		}
+			if((r + c) % 2 === 0) 
+	        	tile.className = "black square";
+	      	else
+	        	tile.className = "white square";
     	}
+  	}
+}
+
+function clearSelection(board) 
+{
+  	for(var r = 0; r < board.rows.length; r++) 
+  	{
+	    for(var c = 0; c < board.rows[r].cells.length; c++) 
+	    {
+	      	var tile = board.rows[r].cells[c];
+	      	var child = tile.firstChild;
+
+	      	if(child !== null && child.className.indexOf(" selected") > -1) 
+	        	child.className = child.className.replace(" selected", "");
+	      	else if(child !== null && child.className.indexOf(" for_capture") > -1) 
+	        	child.className = child.className.replace(" for_capture", "");
+	    }
   	}
 }
 
 function pieceHighlightPossibleMoves() 
 {
-  	var board = document.getElementById("board");
-	clearTiles();
-	clearSelection(board);
+	if(!selection_lock)
+  	{
+  		var board = document.getElementById("board");
+  		clearHighlight(board);
+  		clearSelection(board);
+  	
+  	  	if(!highlightCaptures.call(this, board))
+  	  		highlightMoves.call(this, board);
+  	}
+  	
+}
 
-  	var x = this.parentNode.parentNode.rowIndex;
-  	var y = this.parentNode.cellIndex;
+function highlightCaptures(board)
+{
+	var r = this.parentNode.parentNode.rowIndex;
+  	var c = this.parentNode.cellIndex;
   	var size_x = board.rows.length;
-  	var size_y = board.rows[x].cells.length;
-  	var piece_color = checkTileContent(board, x, y);
+  	var size_y = board.rows[r].cells.length;
+  	var piece_color = checkTileContent(board, r, c);
+  	var any_avalable = false;
 
   	if(piece_color === whose_turn) 
   	{
-	  	board.rows[x].cells[y].firstChild.className += " selected";
+  		if(board.rows[r].cells[c].firstChild.className.indexOf(" selected") <= -1)
+  			board.rows[r].cells[c].firstChild.className += " selected";
+  		
+	    if(checkIfTileExists(r - 1, c - 1, size_x, size_y) && checkTileContent(board, r - 1, c - 1) !== piece_color 
+	    	&& checkTileContent(board, r - 1, c - 1) !== ColorType.NONE)
+	    {
+	    	if(checkIfTileExists(r - 2, c - 2, size_x, size_y) && checkTileContent(board, r - 2, c - 2) === ColorType.NONE)
+	    	{
+		    	board.rows[r - 1].cells[c - 1].firstChild.className += " for_capture";
+			    board.rows[r - 2].cells[c - 2].className = "square for_capture";
+			    any_avalable = true;
+			}
+	    }
+	    if(checkIfTileExists(r - 1, c + 1, size_x, size_y) && checkTileContent(board, r - 1, c + 1) !== piece_color
+	    	&& checkTileContent(board, r - 1, c + 1) !== ColorType.NONE)
+	    {
+	    	if(checkIfTileExists(r - 2, c + 2, size_x, size_y) && checkTileContent(board, r - 2, c + 2) === ColorType.NONE)
+	    	{
+		    	board.rows[r - 1].cells[c + 1].firstChild.className += " for_capture";
+			    board.rows[r - 2].cells[c + 2].className = "square for_capture";
+			    any_avalable = true;
+			}
+	    } 
+		if(checkIfTileExists(r + 1, c - 1, size_x, size_y) && checkTileContent(board, r + 1, c - 1) !== piece_color
+	    	&& checkTileContent(board, r + 1, c - 1) !== ColorType.NONE)
+	    {
+	    	if(checkIfTileExists(r + 2, c - 2, size_x, size_y) && checkTileContent(board, r + 2, c - 2) === ColorType.NONE)
+	    	{
+		    	board.rows[r + 1].cells[c - 1].firstChild.className += " for_capture";
+			    board.rows[r + 2].cells[c - 2].className = "square for_capture";
+			    any_avalable = true;
+			}
+	    }
+		if(checkIfTileExists(r + 1, c + 1, size_x, size_y) && checkTileContent(board, r + 1, c + 1) !== piece_color
+	    	&& checkTileContent(board, r + 1, c + 1) !== ColorType.NONE)
+	    {
+	    	if(checkIfTileExists(r + 2, c + 2, size_x, size_y) && checkTileContent(board, r + 2, c + 2) === ColorType.NONE)
+	    	{
+		    	board.rows[r + 1].cells[c + 1].firstChild.className += " for_capture";
+			    board.rows[r + 2].cells[c + 2].className = "square for_capture";
+			    any_avalable = true;
+			}
+	    }
+	}
 
-	  	if(piece_color === ColorType.WHITE) 
+	return any_avalable;
+}
+
+function highlightMoves(board)
+{
+	var r = this.parentNode.parentNode.rowIndex;
+  	var c = this.parentNode.cellIndex;
+  	var size_x = board.rows.length;
+  	var size_y = board.rows[r].cells.length;
+  	var piece_color = checkTileContent(board, r, c);
+  	var promotion_token = this.firstChild;
+  	var is_promoted = (promotion_token !== null && promotion_token.className === "token promoted");
+  	var moved = false;
+
+  	if(piece_color === whose_turn) 
+  	{
+  		if(board.rows[r].cells[c].firstChild.className.indexOf(" selected") <= -1)
+  			board.rows[r].cells[c].firstChild.className += " selected";
+
+	  	if(piece_color === ColorType.WHITE || is_promoted)
 	  	{
-	    	if(checkIfTileExists(x - 1, y - 1, size_x, size_y)) 
-	    	{
-	      		var tile_content = checkTileContent(board, x - 1, y - 1);
-
-	      		if(tile_content === ColorType.NONE)
-	          		board.rows[x - 1].cells[y - 1].className = "avalable square";
-	      		else if(tile_content === ColorType.BLACK) {
-	        		if(checkIfTileExists(x - 2, y - 2, size_x, size_y) && checkTileContent(board, x - 2, y - 2) === ColorType.NONE) 
-	        		{
-		          		board.rows[x - 1].cells[y - 1].firstChild.className += "for_taking";
-		          		board.rows[x - 2].cells[y - 2].className = "square for_taking";
-	        		}
-	      		}
-	    	}
-	    	if(checkIfTileExists(x - 1, y + 1, size_x, size_y)) 
-	    	{
-	      		var tile_content = checkTileContent(board, x - 1, y + 1);
-
-		      	if(tile_content === ColorType.NONE)
-		          	board.rows[x - 1].cells[y + 1].className = "avalable square";
-		      	else if(tile_content !== piece_color) 
-		      	{
-		        	if(checkIfTileExists(x - 2, y + 2, size_x, size_y) && checkTileContent(board, x - 2, y + 2) === ColorType.NONE) 
-		        	{
-			          	board.rows[x - 1].cells[y + 1].firstChild.className += "for_taking";
-			          	board.rows[x - 2].cells[y + 2].className = "square for_taking";
-		        	}
-		      	}
-	    	}
+	    	if(checkIfTileExists(r - 1, c - 1, size_x, size_y) && checkTileContent(board, r - 1, c - 1) === ColorType.NONE)
+				board.rows[r - 1].cells[c - 1].className = "avalable square";
+	    	if(checkIfTileExists(r - 1, c + 1, size_x, size_y) && checkTileContent(board, r - 1, c + 1) === ColorType.NONE)
+				board.rows[r - 1].cells[c + 1].className = "avalable square";
 		}
-		if(piece_color === ColorType.BLACK) 
+		if(piece_color === ColorType.BLACK || is_promoted)
 		{
-		    if(checkIfTileExists(x + 1, y - 1, size_x, size_y)) 
-		    {
-		      	var tile_content = checkTileContent(board, x + 1, y - 1);
-
-		      	if(tile_content === ColorType.NONE)
-		          	board.rows[x + 1].cells[y - 1].className = "avalable square";
-		      	else if(tile_content === ColorType.WHITE) 
-		      	{
-		        	if(checkIfTileExists(x + 2, y - 2, size_x, size_y) && checkTileContent(board, x + 2, y - 2) === ColorType.NONE) 
-		        	{
-		          		board.rows[x + 1].cells[y - 1].firstChild.className += "for_taking";
-		          		board.rows[x + 2].cells[y - 2].className = "square for_taking";
-		        	}
-		      	}
-		    }
-		    if(checkIfTileExists(x + 1, y + 1, size_x, size_y)) 
-		    {
-		      	var tile_content = checkTileContent(board, x + 1, y + 1);
-
-		      	if(tile_content === ColorType.NONE)
-		          	board.rows[x + 1].cells[y + 1].className = "avalable square";
-		      	else if(tile_content !== piece_color) 
-		      	{
-		        	if(checkIfTileExists(x + 2, y + 2, size_x, size_y) && checkTileContent(board, x + 2, y + 2) === ColorType.NONE) 
-		        	{
-		          		board.rows[x + 1].cells[y + 1].firstChild.className += "for_taking";
-		          		board.rows[x + 2].cells[y + 2].className = "square for_taking";
-		        	}
-		      	}
-		    }
+		    if(checkIfTileExists(r + 1, c - 1, size_x, size_y) && checkTileContent(board, r + 1, c - 1) === ColorType.NONE) 
+				board.rows[r + 1].cells[c - 1].className = "avalable square";
+		    if(checkIfTileExists(r + 1, c + 1, size_x, size_y) && checkTileContent(board, r + 1, c + 1) === ColorType.NONE) 
+				board.rows[r + 1].cells[c + 1].className = "avalable square";
 	  	}
 	}
 }
 
-function getTileUnderSelectedPiece(board) 
+function pieceAction()
 {
-  	for(var x = 0; x < board.rows.length; x++) 
-  	{
-    	for(var y = 0; y < board.rows[x].cells.length; y++) 
-    	{
-      		var tile = board.rows[x].cells[y];
-      		var child = tile.firstChild;
+	var board = document.getElementById("board");
 
-      		if(child !== null && child.className.indexOf("selected") > -1)
-        		return tile;
-    	}
-  	}
-}
-
-function getTileUnderPieceForTaking(board) 
-{
-  	for(var x = 0; x < board.rows.length; x++) 
-  	{
-	    for(var y = 0; y < board.rows[x].cells.length; y++) 
-	    {
-	      	var tile = board.rows[x].cells[y];
-	      	var child = tile.firstChild;
-
-	      	if(child !== null && child.className.indexOf("for_taking") > -1)
-	        	return tile;
-	    }
-  	}
+	movePiece.call(this, board);
+	capturePiece.call(this, board);
 }
 
 function movePiece() 
 {
-  	var board = document.getElementById("board");
+	var board = document.getElementById("board");
 
   	if(this.className.indexOf("avalable") > -1) 
   	{
@@ -231,50 +241,91 @@ function movePiece()
 
     	this.appendChild(piece_to_move);
 
-    	clearTiles();
+    	var row_index = this.parentNode.rowIndex;
+	    if(row_index === 0 || row_index === 7)
+    	{
+    		var token = document.createElement("div");
+    		token.className = "token promoted";
+    		piece_to_move.appendChild(token);
+    	}
+
+    	clearHighlight(board);
     	clearSelection(board);
-    	rotateBoard();
+    	endTurn();
   	} 
-  	else if(this.className.indexOf("for_taking") > -1) 
-  	{
-	    var tile_under_selected = getTileUnderSelectedPiece(board);
-	    var piece_to_move = tile_under_selected.firstChild;
-	    var tile_under_piece_for_taking = getTileUnderPieceForTaking(board);
-	    var piece_for_taking = tile_under_piece_for_taking.firstChild;
-
-	    tile_under_piece_for_taking.removeChild(piece_for_taking);
-	    this.appendChild(piece_to_move);
-
-	    clearTiles();
-	    clearSelection(board);
-  	}
 }
 
-function clearSelection(board) 
+function capturePiece(board)
 {
-  	for(var x = 0; x < board.rows.length; x++) 
+	if(this.className.indexOf(" for_capture") > -1) 
   	{
-	    for(var y = 0; y < board.rows[x].cells.length; y++) 
-	    {
-	      	var tile = board.rows[x].cells[y];
-	      	var child = tile.firstChild;
+  		selection_lock = true;
 
-	      	if(child !== null && child.className.indexOf("selected") > -1) 
-	        	child.className = child.className.replace("selected", "");
-	      	else if(child !== null && child.className.indexOf("for_taking") > -1) 
-	        	child.className = child.className.replace("for_taking", "");
+	    var tile_under_selected = getTileUnderSelectedPiece(board);
+	    var piece_to_move = tile_under_selected.firstChild;
+	    var tile_under_piece_for_capture = getTileUnderPieceForCapture(board);
+	    var piece_for_capture = tile_under_piece_for_capture.firstChild;
+
+	    tile_under_piece_for_capture.removeChild(piece_for_capture);
+	    this.appendChild(piece_to_move);
+
+	    var row_index = this.parentNode.rowIndex;
+	    if(row_index === 0 || row_index === 7)
+    	{
+    		var token = document.createElement("div");
+    		token.className = "token promoted";
+    		piece_to_move.appendChild(token);
+    	}
+
+	    clearHighlight(board);
+
+	    if(!highlightCaptures.call(piece_to_move, board))
+	    {
+	    	selection_lock = false;
+	    	clearSelection(board);
+	    	endTurn();
 	    }
   	}
 }
 
-function checkIfTileExists(x, y, size_x, size_y) 
+function getTileUnderSelectedPiece(board) 
 {
-  	return x >= 0 && x < size_x && y >= 0 && y < size_y;
+  	for(var r = 0; r < board.rows.length; r++) 
+  	{
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
+    	{
+      		var tile = board.rows[r].cells[c];
+      		var child = tile.firstChild;
+
+      		if(child !== null && child.className.indexOf(" selected") > -1)
+        		return tile;
+    	}
+  	}
 }
 
-function checkTileContent(board, x, y) 
+function getTileUnderPieceForCapture(board) 
 {
-  	var content = board.rows[x].cells[y].firstChild;
+  	for(var r = 0; r < board.rows.length; r++) 
+  	{
+	    for(var c = 0; c < board.rows[r].cells.length; c++) 
+	    {
+	      	var tile = board.rows[r].cells[c];
+	      	var child = tile.firstChild;
+
+	      	if(child !== null && child.className.indexOf(" for_capture") > -1)
+	        	return tile;
+	    }
+  	}
+}
+
+function checkIfTileExists(r, c, size_x, size_y) 
+{
+  	return r >= 0 && r < size_x && c >= 0 && c < size_y;
+}
+
+function checkTileContent(board, r, c) 
+{
+  	var content = board.rows[r].cells[c].firstChild;
 
   	if(content === null)
     	return ColorType.NONE;
@@ -285,7 +336,7 @@ function checkTileContent(board, x, y)
   	return -1;
 }
 
-function rotateBoard() 
+function endTurn() 
 {
   	if(in_progress === false) 
   	{
