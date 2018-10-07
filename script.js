@@ -1,3 +1,5 @@
+//Made by Adam Składanek 7 X 2018
+
 var interval_rotate;
 var frame = 0;
 var in_progress = false;
@@ -5,6 +7,7 @@ var in_progress = false;
 const ColorType = {NONE:0, WHITE:1, BLACK:2};
 var whose_turn = ColorType.WHITE;
 var selection_lock = false;
+var capture_avalable = false;
 
 function setUpBoard() 
 {
@@ -106,12 +109,24 @@ function clearSelection(board)
 	    for(var c = 0; c < board.rows[r].cells.length; c++) 
 	    {
 	      	var tile = board.rows[r].cells[c];
-	      	var child = tile.firstChild;
+	      	var piece = tile.firstChild;
 
-	      	if(child !== null && child.className.indexOf(" selected") > -1) 
-	        	child.className = child.className.replace(" selected", "");
-	      	else if(child !== null && child.className.indexOf(" for_capture") > -1) 
-	        	child.className = child.className.replace(" for_capture", "");
+	      	if(piece !== null && piece.className.indexOf(" selected") > -1) 
+	        	piece.className = piece.className.replace(" selected", "");
+	    }
+  	}
+}
+function clearCaptureHighlight(board) 
+{
+  	for(var r = 0; r < board.rows.length; r++) 
+  	{
+	    for(var c = 0; c < board.rows[r].cells.length; c++) 
+	    {
+	      	var tile = board.rows[r].cells[c];
+	      	var piece = tile.firstChild;
+
+	      	if(piece !== null && piece.className.indexOf(" for_capture") > -1) 
+	        	piece.className = piece.className.replace(" for_capture", "");
 	    }
   	}
 }
@@ -123,8 +138,11 @@ function pieceHighlightPossibleMoves()
   		var board = document.getElementById("board");
   		clearHighlight(board);
   		clearSelection(board);
+  		clearCaptureHighlight(board);
   	
-  	  	if(!highlightCaptures.call(this, board))
+  	  	if(capture_avalable)
+  	  		highlightCaptures.call(this, board)
+  	  	else
   	  		highlightMoves.call(this, board);
   	}
   	
@@ -251,6 +269,7 @@ function movePiece()
 
     	clearHighlight(board);
     	clearSelection(board);
+    	clearCaptureHighlight(board);
     	endTurn();
   	} 
 }
@@ -268,6 +287,7 @@ function capturePiece(board)
 
 	    tile_under_piece_for_capture.removeChild(piece_for_capture);
 	    this.appendChild(piece_to_move);
+	    capture_avalable = false;
 
 	    var row_index = this.parentNode.rowIndex;
 	    if(row_index === 0 || row_index === 7)
@@ -283,6 +303,7 @@ function capturePiece(board)
 	    {
 	    	selection_lock = false;
 	    	clearSelection(board);
+	    	clearCaptureHighlight(board);
 	    	endTurn();
 	    }
   	}
@@ -295,9 +316,9 @@ function getTileUnderSelectedPiece(board)
     	for(var c = 0; c < board.rows[r].cells.length; c++) 
     	{
       		var tile = board.rows[r].cells[c];
-      		var child = tile.firstChild;
+      		var piece = tile.firstChild;
 
-      		if(child !== null && child.className.indexOf(" selected") > -1)
+      		if(piece !== null && piece.className.indexOf(" selected") > -1)
         		return tile;
     	}
   	}
@@ -310,9 +331,9 @@ function getTileUnderPieceForCapture(board)
 	    for(var c = 0; c < board.rows[r].cells.length; c++) 
 	    {
 	      	var tile = board.rows[r].cells[c];
-	      	var child = tile.firstChild;
+	      	var piece = tile.firstChild;
 
-	      	if(child !== null && child.className.indexOf(" for_capture") > -1)
+	      	if(piece !== null && piece.className.indexOf(" for_capture") > -1)
 	        	return tile;
 	    }
   	}
@@ -336,6 +357,26 @@ function checkTileContent(board, r, c)
   	return -1;
 }
 
+function checkIfCaptureAvalable(board)
+{
+	var output = false
+	for(var r = 0; r < board.rows.length; r++) 
+  	{
+    	for(var c = 0; c < board.rows[r].cells.length; c++) 
+    	{
+      		var tile = board.rows[r].cells[c];
+      		var piece = tile.firstChild;
+      		var piece_color = checkTileContent(board, r, c);
+
+      		if(piece !== null && piece_color === whose_turn && highlightCaptures.call(piece, board))
+        		output = true;
+    	}
+  	}
+  	clearHighlight(board);
+	clearSelection(board);
+	return output;
+}
+
 function endTurn() 
 {
   	if(in_progress === false) 
@@ -347,10 +388,17 @@ function endTurn()
   		whose_turn = ColorType.BLACK;
   	else
   		whose_turn = ColorType.WHITE;
+
+  	var board = document.getElementById("board");
+  	capture_avalable = checkIfCaptureAvalable(board);
 }
 function rotateElement(name, turn) 
 {
-  	frame += 2;
+	if(whose_turn === ColorType.WHITE)
+  		frame += 2;
+  	else
+  		frame -= 2;
+
   	document.getElementById(name).style.transform = "rotate(" + frame + "deg)";
   	if(frame % 180 === 0) 
   	{
