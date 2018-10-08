@@ -295,6 +295,11 @@ function capturePiece(board)
     		var token = document.createElement("div");
     		token.className = "token promoted";
     		piece_to_move.appendChild(token);
+
+    		//after promotion turn ends
+    		clearSelection(board);
+	    	clearCaptureHighlight(board);
+	    	endTurn();
     	}
 
 	    clearHighlight(board);
