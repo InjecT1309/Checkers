@@ -300,6 +300,7 @@ function capturePiece(board)
     		clearSelection(board);
 	    	clearCaptureHighlight(board);
 	    	endTurn();
+	    	return;
     	}
 
 	    clearHighlight(board);
